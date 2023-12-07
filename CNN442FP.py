@@ -18,13 +18,25 @@ class ImageCNNRaw(nn.Module):
             nn.Conv2d(32, 64, kernel_size=3, stride=1, padding=1),
             nn.ReLU(),
             nn.MaxPool2d(kernel_size=2, stride=2),
+            nn.Conv2d(64, 128, kernel_size=3, stride=1, padding=1),
+            nn.ReLU(),
+            nn.MaxPool2d(kernel_size=2, stride=2),
+            nn.Conv2d(128, 256, kernel_size=3, stride=1, padding=1),
+            nn.ReLU(),
+            nn.MaxPool2d(kernel_size=2, stride=2),
         )
-        self.fc = nn.Linear(64 * 24 * 24, 5)  
+        self.fc_layers = nn.Sequential(
+            nn.Linear(256 * 6 * 6, 64),
+            nn.ReLU(),
+            nn.Linear(64, 5)  
+        )
+        # self.fc1 = nn.Linear(256 * 6 * 6, 64)  
+        # self.fc2 = nn.Linear(64, 5)  
 
     def forward(self, x):
         x = self.conv_layers(x)
         x = x.view(x.size(0), -1)  # NOTE: come back to this 
-        x = self.fc(x)
+        x = self.fc_layers(x)
         return  torch.softmax(x, dim=1) # NOTE: might need dim=1 
 
     
@@ -38,11 +50,21 @@ class ImageCNNTransformer(nn.Module):
             nn.Conv2d(32, 64, kernel_size=3, stride=1, padding=1),
             nn.ReLU(),
             nn.MaxPool2d(kernel_size=2, stride=2),
+            nn.Conv2d(64, 128, kernel_size=3, stride=1, padding=1),
+            nn.ReLU(),
+            nn.MaxPool2d(kernel_size=2, stride=2),
+            nn.Conv2d(128, 256, kernel_size=3, stride=1, padding=1),
+            nn.ReLU(),
+            nn.MaxPool2d(kernel_size=2, stride=2),
         )
-        self.fc = nn.Linear(64 * 24 * 24, 128)  
+        self.fc_layers = nn.Sequential(
+            nn.Linear(256 * 6 * 6, 196),
+            nn.ReLU(),
+            nn.Linear(196, 128)  
+        )
 
     def forward(self, x):
         x = self.conv_layers(x)
         x = x.view(x.size(0), -1)  
-        x = self.fc(x)
+        x = self.fc_layers(x)
         return x
