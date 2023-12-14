@@ -8,8 +8,8 @@ import torch.nn as nn
 import torch.optim as optim
 from torch.nn import TransformerEncoder, TransformerEncoderLayer
 from dataloader import Dataset442FP 
-from CNN442FP import ImageCNNRaw
-from Transformer442FP import LipReadingTransformer
+from CNN442FP import ImageCNNRaw, VideoCNN3D
+from Transformer442FP import LipReadingTransformer, load_vgg_params, RNNModel, VideoClassifier, LinearClassifier
 import torch
 import os
 import matplotlib as plt
@@ -31,15 +31,26 @@ from greg_script import *
 import sys
 import random
 import time 
+from torchvision import models
+from custom_tcn import TemporalConvNet
 torch.manual_seed(69)
 np.random.seed(69)
 random.seed(69)
 
 classes = ["ABOUT", "BECAUSE", "CALLED", "DAVID", "EASTERN"]
 
+def load_pretrained_weights(trained_model_path, new_model):
+    trained_state_dict = torch.load(trained_model_path)['state_dict']
+    
+    for name, param in new_model.named_parameters():
+        if name in trained_state_dict and 'cnn' in name:
+            param.data = trained_state_dict[name]
+            param.requires_grad = False
+
+    return new_model
+
+
 def formatData(image_name, partition): 
-
-
     """
     Given an image_name, find the respective .npz file in the directory 
     and format it in the format that the dataLoader expected
@@ -78,10 +89,6 @@ va_loader = DataLoader(Dataset442FP("val"), batch_size=8, shuffle=False)
 te_loader = DataLoader(Dataset442FP("test"), batch_size=8, shuffle=False)
 
 
-# # Initialize model, loss function, and optimizer
-# model = LipReadingTransformer()
-# criterion = nn.CrossEntropyLoss()
-# optimizer = optim.Adam(model.parameters(), lr=0.001)
 def save_checkpoint(model, epoch, checkpoint_dir, stats, info):
     """Save a checkpoint file to checkpoint_dir."""
     state = {
@@ -112,7 +119,19 @@ def trial(batch_size_in, learning_rate_in, momentum_in, weight_decay_in, save_fo
     
     # model = ImageCNNRaw()
     model = LipReadingTransformer()
+    # model = load_vgg_params()
+    # model = RNNModel()
+    # model = VideoClassifier()
+    # model = LinearClassifier()
+    # model = VideoCNN3D()
+    # model = TemporalConvNet()
+    print(f'device being used: {device}')
     model.to(device)
+    
+    # print("loading pretrained weights")
+    
+    # trained_model_path = '/home/miyen/442FP/cnn_transformer_embeddings:01:56:46 12/10/23 CST/b64_lr1e-05_p0.9_wd0.0001/checkpoints/epoch=20.checkpoint.pth.tar'
+    # load_pretrained_weights(trained_model_path, model)
     
     start_epoch = 0
     stats = []
@@ -144,11 +163,12 @@ def trial(batch_size_in, learning_rate_in, momentum_in, weight_decay_in, save_fo
         print(f"starting epoch {epoch}")
         
         # Train model
+        start_time = time.time()
         train_epoch(tr_loader, model, criterion, optimizer, device)
-
         # Evaluate model
         evaluate_epoch(tr_loader, va_loader, te_loader,model, criterion, epoch + 1, stats,
                        device, info, save_folder,reg)
+        print(f"Time for epoch {epoch}: {time.time() - start_time}")
 
         # Save model parameters
         save_checkpoint(model, epoch + 1, save_folder, stats, info)
@@ -157,4 +177,5 @@ def trial(batch_size_in, learning_rate_in, momentum_in, weight_decay_in, save_fo
             curr_count_to_patience, global_min_loss = early_stopping(stats, curr_count_to_patience, global_min_loss)
         epoch += 1
     print(f"Finished Training after {epoch} epochs")
-trial(64, 5e-5, 0.9, 1e-4,'transformer_run2',reg=True)
+    
+trial(64, 1e-5, 0.9, 1e-4,f"transformer-full:{time.strftime('%X %x %Z')}",reg=True)
