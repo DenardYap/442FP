@@ -68,7 +68,6 @@ class LipReadingTransformer(nn.Module):
 class RNNModel(nn.Module):
     def __init__(self, num_classes=5, hidden_size=1024, num_layers=1):
         super().__init__()
-        # CNN for feature extraction (using VGG16)
         # self.cnn = load_vgg_params()
         self.cnn = ImageCNNTransformer()
 
